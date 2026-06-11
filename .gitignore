@@ -1,0 +1,17 @@
+# Environments
+venv/
+env/
+.env
+__pycache__/
+*.pyc
+
+# IDEs
+.vscode/
+.idea/
+
+# Streamlit
+.streamlit/
+
+# OS Files
+.DS_Store
+Thumbs.db
