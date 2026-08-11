@@ -25,6 +25,8 @@ DocChat isn't just a script that feeds a PDF to an LLM. It's a decoupled microse
 4. **Re-ranking (Cohere):** Instead of trusting the top 3 semantic matches, the vector DB fetches 10 chunks, and Cohere re-ranks them based on true relevance.
 5. **Generation (Groq Llama-3):** Generates the final answer using the ultra-fast Groq API.
 6. **Quality Assurance (LLM-as-a-Judge):** Silently scores its own answers for Faithfulness and Relevance.
+7. **Security (Input Guardrails):** An ultra-fast LLM interceptor blocks prompt injections and jailbreak attempts before they reach the vector database.
+8. **Observability (LangSmith):** Full execution tracing for latency, cost tracking, and pipeline debugging.
 
 ---
 
@@ -34,6 +36,7 @@ DocChat isn't just a script that feeds a PDF to an LLM. It's a decoupled microse
 * **I chose FastAPI + Streamlit instead of a Monolith:** While doing everything in Streamlit is faster to prototype, it doesn't scale. I wanted to prove I know how to build a real backend service that could theoretically support a React or mobile app in the future.
 * **I chose ChromaDB in-memory instead of Pinecone:** I originally planned to use Pinecone (a cloud vector DB), but for a tool meant to quickly chat with a single uploaded document, wiping the database in RAM between sessions was actually a cleaner user experience than managing persistent cloud indexes.
 * **I implemented Cohere Re-ranking:** Standard semantic search (BM25 or basic cosine similarity) often grabs chunks that use similar words but lack the actual answer. Fetching 10 chunks and letting Cohere's dedicated re-ranking model select the top 3 increased the answer quality drastically.
+* **I implemented active Security Guardrails:** I didn't want users trying to jailbreak the bot. I added a pre-processing guardrail layer using Groq that evaluates the user's question and strictly returns a JSON boolean to block malicious prompt injections *before* any RAG logic runs.
 
 ---
 

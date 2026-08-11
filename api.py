@@ -4,12 +4,22 @@ import os
 import shutil
 import tempfile
 import logging
+from src.config import LANGCHAIN_API_KEY, LANGCHAIN_ENDPOINT
+
+# Enable LangSmith Tracing BEFORE importing Langchain modules
+if LANGCHAIN_API_KEY:
+    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+    os.environ["LANGCHAIN_API_KEY"] = LANGCHAIN_API_KEY
+    os.environ["LANGCHAIN_ENDPOINT"] = LANGCHAIN_ENDPOINT
+    os.environ["LANGCHAIN_PROJECT"] = "DocChat_RAG"
 
 logger = logging.getLogger(__name__)
+
 from src.document_processor import process_pdf
 from src.vector_store import create_in_memory_vector_store
 from src.rag_engine import setup_rag_pipeline, ask_rag_question
 from src.evaluator import evaluate_response
+from src.guardrails import check_input_safety
 
 app = FastAPI(title="DocChat RAG Microservice")
 
@@ -61,6 +71,15 @@ async def upload_document(file: UploadFile = File(...)):
 async def ask_question(request: QuestionRequest):
     if not state.rag_chain:
         raise HTTPException(status_code=400, detail="Document not initialized")
+    
+    # Run Input Guardrails
+    guardrail_result = check_input_safety(request.question)
+    if not guardrail_result["is_safe"]:
+        return {
+            "answer": f"🛡️ **Security Alert:** Query blocked by Guardrails.\n\n**Reason:** {guardrail_result['reason']}",
+            "retrieved_chunks": [],
+            "evaluation": {"faithfulness": 0, "relevance": 0, "error": "Blocked by guardrail"}
+        }
     
     result = ask_rag_question(state.rag_chain, request.question)
     
