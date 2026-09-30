@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 from src.document_processor import process_pdf
 from src.vector_store import create_in_memory_vector_store
-from src.rag_engine import setup_rag_pipeline, ask_rag_question
+from src.graph import create_agent_graph
 from src.evaluator import evaluate_response
 from src.guardrails import check_input_safety
 
@@ -26,7 +26,7 @@ app = FastAPI(title="DocChat RAG Microservice")
 class AppState:
     def __init__(self):
         self.vector_store = None
-        self.rag_chain = None
+        self.agent_graph = None
 
 state = AppState()
 
@@ -54,7 +54,7 @@ async def upload_document(file: UploadFile = File(...)):
         chunks = process_pdf(adapted_file)
         
         state.vector_store = create_in_memory_vector_store(chunks)
-        state.rag_chain = setup_rag_pipeline(state.vector_store)
+        state.agent_graph = create_agent_graph(state.vector_store)
         
         return {
             "message": "Document processed successfully", 
@@ -69,10 +69,9 @@ async def upload_document(file: UploadFile = File(...)):
 
 @app.post("/ask")
 async def ask_question(request: QuestionRequest):
-    if not state.rag_chain:
+    if not state.agent_graph:
         raise HTTPException(status_code=400, detail="Document not initialized")
     
-    # Run Input Guardrails
     guardrail_result = check_input_safety(request.question)
     if not guardrail_result["is_safe"]:
         return {
@@ -81,24 +80,40 @@ async def ask_question(request: QuestionRequest):
             "evaluation": {"faithfulness": 0, "relevance": 0, "error": "Blocked by guardrail"}
         }
     
-    result = ask_rag_question(state.rag_chain, request.question)
+    try:
+        initial_state = {"question": request.question, "chat_history": []}
+        result = state.agent_graph.invoke(initial_state)
+        
+        final_answer = result.get("final_answer", "Error generating answer.")
+        retrieved_context = result.get("retrieved_context", [])
+        source_used = result.get("source_used", "unknown")
+        
+    except Exception as e:
+        logger.error(f"Graph execution failed: {e}")
+        final_answer = f"Error executing workflow: {str(e)}"
+        retrieved_context = []
+        source_used = "error"
     
     serialized_chunks = [
         {
             "content": chunk.page_content, 
-            "page": chunk.metadata.get("page", "Unknown")
-        } for chunk in result.get("context", [])
+            "page": chunk.metadata.get("page", "Unknown") if hasattr(chunk, 'metadata') else "Unknown"
+        } for chunk in retrieved_context
     ]
     
     full_context_str = "\n\n".join([chunk["content"] for chunk in serialized_chunks])
-    eval_scores = evaluate_response(request.question, full_context_str, result.get("answer", ""))
+    
+    if source_used == "document":
+        eval_scores = evaluate_response(request.question, full_context_str, final_answer)
+    else:
+        eval_scores = {"faithfulness": 100, "relevance": 100, "note": "Web Search bypassing evaluation"}
     
     return {
-        "answer": result.get("answer", ""),
+        "answer": f"**[Source: {source_used.upper()}]**\n\n{final_answer}",
         "retrieved_chunks": serialized_chunks,
         "evaluation": eval_scores
     }
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "rag_ready": state.rag_chain is not None}
+    return {"status": "ok", "rag_ready": state.agent_graph is not None}

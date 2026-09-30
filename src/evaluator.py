@@ -1,20 +1,16 @@
 import json
 import logging
-from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from src.config import GROQ_API_KEY, LLM_MODEL_NAME
+from src.config import OPENAI_API_KEY
 
 def evaluate_response(question: str, context: str, answer: str) -> dict:
-    """
-    Evaluates the RAG response on Faithfulness and Relevance using an LLM-as-a-judge.
-    Returns a dictionary with scores between 0 and 100.
-    """
-    if not GROQ_API_KEY:
+    if not OPENAI_API_KEY:
         return {"faithfulness": 0, "relevance": 0, "error": "API Key missing"}
 
-    llm = ChatGroq(
-        groq_api_key=GROQ_API_KEY,
-        model_name=LLM_MODEL_NAME,
+    llm = ChatOpenAI(
+        openai_api_key=OPENAI_API_KEY,
+        model_name="gpt-4o-mini",
         temperature=0.0
     )
 
@@ -49,18 +45,12 @@ def evaluate_response(question: str, context: str, answer: str) -> dict:
             "question": question,
             "context": context,
             "answer": answer
-        })
+        }).content.strip()
         
-        # Clean up potential markdown formatting from the LLM
-        output = response.content.strip()
-        if output.startswith("```json"):
-            output = output[7:]
-        if output.startswith("```"):
-            output = output[3:]
-        if output.endswith("```"):
-            output = output[:-3]
+        if response.startswith("```"):
+            response = response.split("\n", 1)[-1].rsplit("\n", 1)[0]
             
-        scores = json.loads(output.strip())
+        scores = json.loads(response)
         return {
             "faithfulness": scores.get("faithfulness", 0),
             "relevance": scores.get("relevance", 0)

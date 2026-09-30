@@ -4,11 +4,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # API Configuration
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY")
 LANGCHAIN_ENDPOINT = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
-LLM_MODEL_NAME = "llama-3.3-70b-versatile"
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Embeddings Configuration
 # sentence-transformers runs locally and is free

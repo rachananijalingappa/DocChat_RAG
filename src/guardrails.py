@@ -1,24 +1,18 @@
 import json
 import logging
-from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from src.config import GROQ_API_KEY, LLM_MODEL_NAME
+from src.config import OPENAI_API_KEY
 
 logger = logging.getLogger(__name__)
 
 def check_input_safety(question: str) -> dict:
-    """
-    Evaluates the user's question before it hits the retrieval pipeline.
-    Checks for prompt injections, jailbreaks, and grossly off-topic queries.
-    Returns a dictionary: {"is_safe": bool, "reason": str}
-    """
-    if not GROQ_API_KEY:
-        return {"is_safe": True, "reason": "Guardrails bypassed (Missing API Key)"}
+    if not OPENAI_API_KEY:
+        return {"is_safe": True, "reason": "Guardrails bypassed"}
 
-    # We use a fast LLM for the guardrail
-    llm = ChatGroq(
-        groq_api_key=GROQ_API_KEY,
-        model_name=LLM_MODEL_NAME,
+    llm = ChatOpenAI(
+        openai_api_key=OPENAI_API_KEY,
+        model_name="gpt-4o-mini",
         temperature=0.0
     )
 
