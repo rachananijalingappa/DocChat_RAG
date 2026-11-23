@@ -15,3 +15,6 @@ __pycache__/
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Third-party test PDF (not ours to redistribute)
+test_document.pdf

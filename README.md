@@ -48,3 +48,13 @@ The backend is built with FastAPI and operates as a state graph:
    ```bash
    streamlit run app.py
    ```
+
+## Evaluation
+
+The repository includes an automated evaluation script (`evaluate_pipeline.py`) that uses synthetic data generation to benchmark retrieval performance. 
+
+To run the evaluation:
+1. Place a PDF named `test_document.pdf` in the root directory.
+2. Run `python evaluate_pipeline.py`.
+
+The script uses GPT-4o-mini to generate synthetic test queries based on the document chunks. It then compares baseline ChromaDB retrieval against Cohere contextual re-ranking, grading the outputs on relevance and faithfulness using an LLM-as-a-judge.

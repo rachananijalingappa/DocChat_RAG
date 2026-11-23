@@ -1,13 +1,14 @@
 import streamlit as st
 import requests
+import os
 
-API_URL = "http://localhost:8000"
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="DocChat RAG", page_icon="📚", layout="wide")
 
 def main():
-    st.title("DocChat: Advanced RAG")
-    st.write("Upload PDFs and interact with the content via a FastAPI & LangChain microservice architecture.")
+    st.title("DocChat: Multi-Agent RAG")
+    st.write("Upload PDFs and interact with the content via a FastAPI & LangGraph microservice architecture.")
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -59,11 +60,16 @@ def main():
                         
                         if "evaluation" in data:
                             eval_data = data["evaluation"]
-                            cols = st.columns(2)
-                            with cols[0]:
-                                st.metric("Faithfulness Score", f"{eval_data.get('faithfulness', 0)}%")
-                            with cols[1]:
-                                st.metric("Relevance Score", f"{eval_data.get('relevance', 0)}%")
+                            if eval_data.get("faithfulness") is None or "error" in eval_data:
+                                # Unscored (web search, blocked) or the judge call failed: don't show a number.
+                                reason = eval_data.get("note") or f"evaluation failed ({eval_data.get('error')})"
+                                st.caption(f"Answer not scored: {reason}")
+                            else:
+                                cols = st.columns(2)
+                                with cols[0]:
+                                    st.metric("Faithfulness Score", f"{eval_data['faithfulness']}%")
+                                with cols[1]:
+                                    st.metric("Relevance Score", f"{eval_data['relevance']}%")
                         
                         if retrieved_chunks:
                             with st.expander("View Sources"):

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 from src.document_processor import process_pdf
 from src.vector_store import create_in_memory_vector_store
-from src.graph import create_agent_graph
+from src.graph import create_agent_graph, build_document_profile
 from src.evaluator import evaluate_response
 from src.guardrails import check_input_safety
 
@@ -53,8 +53,22 @@ async def upload_document(file: UploadFile = File(...)):
         adapted_file = UploadedFileAdapter(tmp_path)
         chunks = process_pdf(adapted_file)
         
-        state.vector_store = create_in_memory_vector_store(chunks)
-        state.agent_graph = create_agent_graph(state.vector_store)
+        # Build the new store and graph first, then swap, so a failed upload
+        # leaves the previous document working.
+        new_store = create_in_memory_vector_store(chunks)
+        document_profile = build_document_profile(file.filename, chunks)
+        new_graph = create_agent_graph(new_store, document_profile)
+
+        old_store = state.vector_store
+        state.vector_store = new_store
+        state.agent_graph = new_graph
+
+        # Delete the previous document's collection so its chunks can no longer be retrieved.
+        if old_store is not None:
+            try:
+                old_store.delete_collection()
+            except Exception as e:
+                logger.warning(f"Could not delete previous collection: {e}")
         
         return {
             "message": "Document processed successfully", 
@@ -77,7 +91,7 @@ async def ask_question(request: QuestionRequest):
         return {
             "answer": f"🛡️ **Security Alert:** Query blocked by Guardrails.\n\n**Reason:** {guardrail_result['reason']}",
             "retrieved_chunks": [],
-            "evaluation": {"faithfulness": 0, "relevance": 0, "error": "Blocked by guardrail"}
+            "evaluation": {"faithfulness": None, "relevance": None, "note": "Blocked by guardrail"}
         }
     
     try:
@@ -106,7 +120,8 @@ async def ask_question(request: QuestionRequest):
     if source_used == "document":
         eval_scores = evaluate_response(request.question, full_context_str, final_answer)
     else:
-        eval_scores = {"faithfulness": 100, "relevance": 100, "note": "Web Search bypassing evaluation"}
+        # Web answers are not scored; returning None avoids showing fake 100% scores in the UI.
+        eval_scores = {"faithfulness": None, "relevance": None, "note": "Web search answers are not evaluated"}
     
     return {
         "answer": f"**[Source: {source_used.upper()}]**\n\n{final_answer}",

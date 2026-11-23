@@ -1,0 +1,16 @@
+# Never copy secrets or local environments into the image
+.env
+venv/
+env/
+.git/
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+
+# Not needed to run the app
+evaluate_pipeline.py
+guardrail_eval/
+manual_tests/
+test_document.pdf
+screenshot.png
