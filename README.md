@@ -107,25 +107,34 @@ These are the ones I'd fix before anyone relied on this:
 ## Running it locally
 
 1. Install dependencies (versions are pinned):
+1. Install dependencies (versions are pinned):
    ```bash
    pip install -r requirements.txt
    ```
+2. Create a `.env` file:
 2. Create a `.env` file:
    ```env
    OPENAI_API_KEY=your_openai_key
    COHERE_API_KEY=your_cohere_key
    # optional, turns on LangSmith tracing
    LANGCHAIN_API_KEY=your_langsmith_key
+   # optional, turns on LangSmith tracing
+   LANGCHAIN_API_KEY=your_langsmith_key
    ```
+3. Start the API:
 3. Start the API:
    ```bash
    python -m uvicorn api:app --port 8000
    ```
 4. Start the front end in a second terminal:
+4. Start the front end in a second terminal:
    ```bash
    streamlit run app.py
    ```
 
+The Docker image runs both: `start.sh` starts the API on port 8000 and Streamlit on 7860, the port Hugging Face Spaces exposes.
+
+To run the re-ranking evaluation, put a PDF named `test_document.pdf` in the root folder and run `python evaluate_pipeline.py`. It uses your own API keys, so it costs a few pence a run.
 The Docker image runs both: `start.sh` starts the API on port 8000 and Streamlit on 7860, the port Hugging Face Spaces exposes.
 
 To run the re-ranking evaluation, put a PDF named `test_document.pdf` in the root folder and run `python evaluate_pipeline.py`. It uses your own API keys, so it costs a few pence a run.
